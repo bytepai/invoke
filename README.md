@@ -73,7 +73,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/bytepai/invoke"
+	. "github.com/bytepai/invoke"
 )
 
 func main() {
@@ -109,7 +109,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/bytepai/invoke"
+	. "github.com/bytepai/invoke"
 )
 
 func main() {
