@@ -31,35 +31,35 @@ import (
 )
 
 func main() {
-	r := router.NewRouter()
+	r := NewRouter()
 
 	// Set custom 404 handler
-	r.SetNotFoundHandler(func(ctx *router.HttpContext) {
+	r.SetNotFoundHandler(func(ctx *HttpContext) {
 		ctx.WriteString("Custom 404 - Not Found")
 	})
 
-	r.GET("/", func(ctx *router.HttpContext) {
+	r.GET("/", func(ctx *HttpContext) {
 		ctx.WriteString("index")
 	})
 
-	r.GET("/hello", func(ctx *router.HttpContext) {
+	r.GET("/hello", func(ctx *HttpContext) {
 		ctx.WriteString("Hello, world!")
 	})
 
-	r.GET("/user/:name", func(ctx *router.HttpContext) {
+	r.GET("/user/:name", func(ctx *HttpContext) {
 		name := ctx.Params["name"]
 		ctx.WriteString(fmt.Sprintf("Hello, %s!", name))
 	})
 
-	r.GET("/order/:id", func(ctx *router.HttpContext) {
+	r.GET("/order/:id", func(ctx *HttpContext) {
 		id := ctx.Params["id"]
 		ctx.WriteString(fmt.Sprintf("Order ID: %s", id))
 	})
-	r.POST("/product/{id:[0-9]+}", func(ctx *router.HttpContext) {
+	r.POST("/product/{id:[0-9]+}", func(ctx *HttpContext) {
 		id := ctx.Params["id"]
 		ctx.WriteSuccessJSON(id)
 	})
-	r.GET("/phone/{phone:1[3456789]\\d{9}}", func(ctx *router.HttpContext) {
+	r.GET("/phone/{phone:1[3456789]\\d{9}}", func(ctx *HttpContext) {
 		phone := ctx.Params["phone"]
 		ctx.WriteString(fmt.Sprintf("Hello, %s!", phone))
 	})
@@ -77,24 +77,24 @@ import (
 )
 
 func main() {
-	r := router.NewRouter()
+	r := NewRouter()
 
 	// Create a new group
 	apiGroup := r.Group("/api")
 
 	// Register group before hook
-	apiGroup.RegisterGroupBeforeHook(func(ctx *router.HttpContext) bool {
+	apiGroup.RegisterGroupBeforeHook(func(ctx *HttpContext) bool {
 		fmt.Println("API group before hook")
 		return true // Return false to terminate
 	})
 
 	// Register group after hook
-	apiGroup.RegisterGroupAfterHook(func(ctx *router.HttpContext) {
+	apiGroup.RegisterGroupAfterHook(func(ctx *HttpContext) {
 		fmt.Println("API group after hook")
 	})
 
 	// Add routes to the group
-	apiGroup.GET("/info", func(ctx *router.HttpContext) {
+	apiGroup.GET("/info", func(ctx *HttpContext) {
 		ctx.WriteString("API Info")
 	})
 
@@ -113,25 +113,25 @@ import (
 )
 
 func main() {
-	r := router.NewRouter()
+	r := NewRouter()
 
 	// Register global before hook
-	r.RegisterBeforeHook(func(ctx *router.HttpContext) bool {
+	r.RegisterBeforeHook(func(ctx *HttpContext) bool {
 		fmt.Println("Global before hook")
 		return true
 	})
 
 	// Register global after hook
-	r.RegisterAfterHook(func(ctx *router.HttpContext) {
+	r.RegisterAfterHook(func(ctx *HttpContext) {
 		fmt.Println("Global after hook")
 	})
 
-	r.SetRecoveryHandler(func(ctx *router.HttpContext, err interface{}) {
+	r.SetRecoveryHandler(func(ctx *HttpContext, err interface{}) {
 		errString := fmt.Sprintf("Custom recovery handler: %v\n", err)
 		ctx.WriteString(errString)
 	})
 	
-	r.POST("/panic", func(ctx *router.HttpContext) {
+	r.POST("/panic", func(ctx *HttpContext) {
 		var s []string
 		fmt.Println(s[1])
 	})
