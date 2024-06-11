@@ -6,88 +6,88 @@ import (
 	"strconv"
 )
 
-// IntToString converts an integer to a string.
-func IntToString(num int) string {
+// Int2Str converts an integer to a string.
+func Int2Str(num int) string {
 	return strconv.Itoa(num)
 }
 
-// StringToInt converts a string to an integer.
-func StringToInt(str string) (int, error) {
+// Str2Int converts a string to an integer.
+func Str2Int(str string) (int, error) {
 	return strconv.Atoi(str)
 }
 
-// StringToInt64 converts a string to an int64.
-func StringToInt64(str string) (int64, error) {
+// Str2Int64 converts a string to an int64.
+func Str2Int64(str string) (int64, error) {
 	return strconv.ParseInt(str, 10, 64)
 }
 
-// FloatToString converts a float64 to a string.
-func FloatToString(num float64) string {
+// Float2Str converts a float64 to a string.
+func Float2Str(num float64) string {
 	return strconv.FormatFloat(num, 'f', -1, 64)
 }
 
-// StringToFloat converts a string to a float64.
-func StringToFloat(str string) (float64, error) {
+// Str2Float converts a string to a float64.
+func Str2Float(str string) (float64, error) {
 	return strconv.ParseFloat(str, 64)
 }
 
-// BoolToString converts a boolean to a string.
-func BoolToString(b bool) string {
+// Bool2Str converts a boolean to a string.
+func Bool2Str(b bool) string {
 	return strconv.FormatBool(b)
 }
 
-// StringToBool converts a string to a boolean.
-func StringToBool(str string) (bool, error) {
+// Str2Bool converts a string to a boolean.
+func Str2Bool(str string) (bool, error) {
 	return strconv.ParseBool(str)
 }
 
-// IntToFloat converts an integer to a float64.
-func IntToFloat(num int) float64 {
+// Int2Float converts an integer to a float64.
+func Int2Float(num int) float64 {
 	return float64(num)
 }
 
-// FloatToInt converts a float64 to an integer.
-func FloatToInt(num float64) int {
+// Float2Int converts a float64 to an integer.
+func Float2Int(num float64) int {
 	return int(num)
 }
 
-// InterfaceToInt converts an interface{} to an integer.
-func InterfaceToInt(value interface{}) (int, error) {
+// ToInt converts an interface{} to an integer.
+func ToInt(value interface{}) (int, error) {
 	switch v := value.(type) {
 	case int:
 		return v, nil
 	case string:
-		return StringToInt(v)
+		return Str2Int(v)
 	case float64:
-		return FloatToInt(v), nil
+		return Float2Int(v), nil
 	default:
 		return 0, fmt.Errorf("unable to convert %v to int", value)
 	}
 }
 
-// InterfaceToString converts an interface{} to a string.
-func InterfaceToString(value interface{}) string {
+// ToString converts an interface{} to a string.
+func ToString(value interface{}) string {
 	switch v := value.(type) {
 	case int:
-		return IntToString(v)
+		return Int2Str(v)
 	case string:
 		return v
 	case float64:
-		return FloatToString(v)
+		return Float2Str(v)
 	case bool:
-		return BoolToString(v)
+		return Bool2Str(v)
 	default:
 		return fmt.Sprintf("%v", value)
 	}
 }
 
-// InterfaceToFloat converts an interface{} to a float64.
-func InterfaceToFloat(value interface{}) (float64, error) {
+// ToFloat converts an interface{} to a float64.
+func ToFloat(value interface{}) (float64, error) {
 	switch v := value.(type) {
 	case int:
-		return IntToFloat(v), nil
+		return Int2Float(v), nil
 	case string:
-		return StringToFloat(v)
+		return Str2Float(v)
 	case float64:
 		return v, nil
 	default:
@@ -106,7 +106,7 @@ func InterfaceToFloat(value interface{}) (float64, error) {
 //     other integers are an error
 //   - for strings and []byte, same rules as strconv.ParseBool
 //   - all other types are an error
-func ConvertBool(src interface{}) (interface{}, error) {
+func ToBool(src interface{}) (interface{}, error) {
 	switch s := src.(type) {
 	case bool:
 		return s, nil
@@ -144,7 +144,7 @@ func ConvertBool(src interface{}) (interface{}, error) {
 }
 
 // ConvertInt64 converts an interface{} to a int64
-func ConvertInt64(v interface{}) (interface{}, error) {
+func ToInt64(v interface{}) (interface{}, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

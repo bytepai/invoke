@@ -4,7 +4,6 @@ import (
 	"errors"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -158,12 +157,12 @@ func (ctx *HttpContext) ParmInt_(key string) int64 {
 
 // ParmFloat parses a float parameter from the request.
 func (ctx *HttpContext) ParmFloat(key string) (float64, error) {
-	return Str2F(ctx.parmQuery(key))
+	return Str2Float(ctx.parmQuery(key))
 }
 
 // ParmBool parses a boolean parameter from the request.
 func (ctx *HttpContext) ParmBool(key string) (bool, error) {
-	return Str2B(ctx.parmQuery(key))
+	return Str2Bool(ctx.parmQuery(key))
 }
 
 // ParmDate parses a date parameter (yyyy-mm-dd) from the request.
@@ -211,19 +210,4 @@ func (ctx *HttpContext) ParmStrings(key string) []string {
 		return ctx.Req.Form[key]
 	}
 	return nil
-}
-
-// Str2Int64 converts a string to int64.
-func Str2Int64(s string) (int64, error) {
-	return strconv.ParseInt(s, 10, 64)
-}
-
-// Str2F converts a string to float64.
-func Str2F(s string) (float64, error) {
-	return strconv.ParseFloat(s, 64)
-}
-
-// Str2B converts a string to bool.
-func Str2B(s string) (bool, error) {
-	return strconv.ParseBool(s)
 }
