@@ -2,6 +2,7 @@ package invoke
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
@@ -94,14 +95,110 @@ func InterfaceToFloat(value interface{}) (float64, error) {
 	}
 }
 
-// InterfaceToBool converts an interface{} to a boolean.
-func InterfaceToBool(value interface{}) (bool, error) {
-	switch v := value.(type) {
+// ConvertBool converts an interface{} to a boolean.
+// Bool is a ValueConverter that converts input values to bools.
+//
+// The conversion rules are:
+//   - booleans are returned unchanged
+//   - for integer types,
+//     1 is true
+//     0 is false,
+//     other integers are an error
+//   - for strings and []byte, same rules as strconv.ParseBool
+//   - all other types are an error
+func ConvertBool(src interface{}) (interface{}, error) {
+	switch s := src.(type) {
 	case bool:
-		return v, nil
+		return s, nil
 	case string:
-		return StringToBool(v)
-	default:
-		return false, fmt.Errorf("unable to convert %v to bool", value)
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, fmt.Errorf("ConvertBool: couldn't convert %q into type bool", s)
+		}
+		return b, nil
+	case []byte:
+		b, err := strconv.ParseBool(string(s))
+		if err != nil {
+			return nil, fmt.Errorf("ConvertBool: couldn't convert %q into type bool", s)
+		}
+		return b, nil
 	}
+
+	sv := reflect.ValueOf(src)
+	switch sv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		iv := sv.Int()
+		if iv == 1 || iv == 0 {
+			return iv == 1, nil
+		}
+		return nil, fmt.Errorf("ConvertBool: couldn't convert %d into type bool", iv)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		uv := sv.Uint()
+		if uv == 1 || uv == 0 {
+			return uv == 1, nil
+		}
+		return nil, fmt.Errorf("ConvertBool: couldn't convert %d into type bool", uv)
+	}
+
+	return nil, fmt.Errorf("ConvertBool: couldn't convert %v (%T) into type bool", src, src)
+}
+
+// ConvertInt64 converts an interface{} to a int64
+func ConvertInt64(v interface{}) (interface{}, error) {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i64 := rv.Int()
+		if i64 > (1<<31)-1 || i64 < -(1<<31) {
+			return nil, fmt.Errorf("ConvertInt64: value %d overflows int32", v)
+		}
+		return i64, nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		u64 := rv.Uint()
+		if u64 > (1<<31)-1 {
+			return nil, fmt.Errorf("ConvertInt64: value %d overflows int32", v)
+		}
+		return int64(u64), nil
+	case reflect.String:
+		i, err := strconv.Atoi(rv.String())
+		if err != nil {
+			return nil, fmt.Errorf("ConvertInt64: value %q can't be converted to int32", v)
+		}
+		return int64(i), nil
+	}
+	return nil, fmt.Errorf("ConvertInt64: unsupported value %v (type %T) converting to int32", v, v)
+}
+
+// Rune2Str This function converts a Unicode code point into its corresponding string representation,
+// handling printable ASCII characters, control characters, and Unicode escape sequences.
+func Rune2Str(r rune) string {
+	if r >= 0x20 && r < 0x7f {
+		return fmt.Sprintf("'%c'", r)
+	}
+	switch r {
+	case 0x07:
+		return "'\\a'"
+	case 0x08:
+		return "'\\b'"
+	case 0x0C:
+		return "'\\f'"
+	case 0x0A:
+		return "'\\n'"
+	case 0x0D:
+		return "'\\r'"
+	case 0x09:
+		return "'\\t'"
+	case 0x0b:
+		return "'\\v'"
+	case 0x5c:
+		return "'\\\\\\'"
+	case 0x27:
+		return "'\\''"
+	case 0x22:
+		return "'\\\"'"
+	}
+	if r < 0x10000 {
+		return fmt.Sprintf("\\u%04x", r)
+	}
+	return fmt.Sprintf("\\U%08x", r)
 }
