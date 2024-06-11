@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // RemoteAddr returns the network address of the client sending the request.
@@ -54,4 +55,25 @@ func (ctx *HttpContext) PostFormValue(key string) string {
 // UserAgent returns the user agent string provided in the request header.
 func (ctx *HttpContext) UserAgent() string {
 	return ctx.Req.UserAgent()
+}
+
+// getRealIP retrieves the real remote IP address from the HTTP request.
+// It considers multiple headers and fields to handle scenarios involving proxies and load balancers.
+func getRealIP(ctx *HttpContext) string {
+	if realIP := ctx.Req.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+
+	if forwardedFor := ctx.Req.Header.Get("X-Forwarded-For"); forwardedFor != "" {
+		parts := strings.Split(forwardedFor, ",")
+		ip := strings.TrimSpace(parts[len(parts)-1])
+		return ip
+	}
+
+	remoteAddr := strings.Split(ctx.Req.RemoteAddr, ":")
+	if len(remoteAddr) == 0 {
+		return ""
+	}
+	ip := remoteAddr[0]
+	return ip
 }
