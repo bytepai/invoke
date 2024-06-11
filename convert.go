@@ -95,7 +95,7 @@ func ToFloat(value interface{}) (float64, error) {
 	}
 }
 
-// ConvertBool converts an interface{} to a boolean.
+// ToBool converts an interface{} to a boolean.
 // Bool is a ValueConverter that converts input values to bools.
 //
 // The conversion rules are:
@@ -143,7 +143,7 @@ func ToBool(src interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("ConvertBool: couldn't convert %v (%T) into type bool", src, src)
 }
 
-// ConvertInt64 converts an interface{} to a int64
+// ToInt64 converts an interface{} to a int64
 func ToInt64(v interface{}) (interface{}, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
