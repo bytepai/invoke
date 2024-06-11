@@ -139,7 +139,14 @@ func main() {
 	fmt.Println("Server listening on port 8080...")
 	r.ListenAndServe(":8080")
 }
+```
+### Server 
+#### router->server->config
+#### server->config->router
+#### config->server->router
+#### http.ListenAndServe->config->router
 
+servers->routers
 
 
 

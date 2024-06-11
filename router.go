@@ -32,7 +32,7 @@ type TrieNode struct {
 }
 
 // Router represents a trie-based router.
-type Router struct {
+type router struct {
 	Root            *TrieNode                               `json:"root"`  // Root node of the trie.
 	Param           map[string]string                       `json:"param"` // Map of route parameters.
 	BeforeHooks     []func(ctx *HttpContext) bool           `json:"-"`     // Global before hooks.
@@ -45,9 +45,11 @@ type Router struct {
 	Assets          func(ctx *HttpContext) bool             `json:"-"` // Handler for serving static files.
 }
 
+var Router = NewRouter()
+
 // NewRouter creates a new router with an empty root node.
-func NewRouter() *Router {
-	return &Router{
+func NewRouter() *router {
+	return &router{
 		Root: &TrieNode{
 			Children: []*TrieNode{},
 			Level:    0,
@@ -59,10 +61,11 @@ func NewRouter() *Router {
 		NotFound: defaultNotFoundHandler,
 		Assets:   defaultAssetsHandler,
 	}
+
 }
 
 // AddRoute adds a route to the router.
-func (r *Router) AddRoute(method, path string, handler func(ctx *HttpContext)) {
+func (r *router) AddRoute(method, path string, handler func(ctx *HttpContext)) {
 	parts := splitPath(path) // Split the path into parts.
 	curr := r.Root           // Start from the root node.
 
@@ -102,7 +105,7 @@ func (r *Router) AddRoute(method, path string, handler func(ctx *HttpContext)) {
 }
 
 // ServeHTTP handles HTTP requests.
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			if r.RecoveryHandler == nil {
@@ -158,19 +161,17 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					found = true
 				}
 			case Regex:
-				if child.Method == method {
-					patternParts := strings.SplitN(child.Pattern, ":", 2)
-					if len(patternParts) >= 2 {
-						paramName := patternParts[0]
-						regexPattern := patternParts[1]
-						match := regexp.MustCompile(regexPattern).FindString(part)
-						if match == part {
-							curr = child
-							params[paramName] = match // Add param to the map.
-							found = true
-						}
+				//if child.Method == method {
+				patternParts := strings.SplitN(child.Pattern, ":", 2)
+				if child.Method == method && len(patternParts) == 2 {
+					paramName, regexPattern := patternParts[0], patternParts[1]
+					if match := regexp.MustCompile(regexPattern).FindString(part); match == part {
+						curr = child
+						params[paramName] = match // Add param to the map.
+						found = true
 					}
 				}
+				//}
 			}
 			if found {
 				break
@@ -206,27 +207,27 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // SetRecoveryHandler sets the custom recovery handler.
-func (r *Router) SetRecoveryHandler(handler func(ctx *HttpContext, err interface{})) {
+func (r *router) SetRecoveryHandler(handler func(ctx *HttpContext, err interface{})) {
 	r.RecoveryHandler = handler
 }
 
 // RegisterBeforeHook registers a global before hook.
-func (r *Router) RegisterBeforeHook(hook func(ctx *HttpContext) bool) {
+func (r *router) RegisterBeforeHook(hook func(ctx *HttpContext) bool) {
 	r.BeforeHooks = append(r.BeforeHooks, hook)
 }
 
 // RegisterAfterHook registers a global after hook.
-func (r *Router) RegisterAfterHook(hook func(ctx *HttpContext)) {
+func (r *router) RegisterAfterHook(hook func(ctx *HttpContext)) {
 	r.AfterHooks = append(r.AfterHooks, hook)
 }
 
 // SetNotFoundHandler sets the 404 Not Found handler.
-func (r *Router) SetNotFoundHandler(handler func(ctx *HttpContext)) {
+func (r *router) SetNotFoundHandler(handler func(ctx *HttpContext)) {
 	r.NotFound = handler
 }
 
 // SetAssetsHandler sets the handler for serving static files.
-func (r *Router) SetAssetsHandler(handler func(ctx *HttpContext) bool) {
+func (r *router) SetAssetsHandler(handler func(ctx *HttpContext) bool) {
 	r.Assets = handler
 }
 
@@ -265,8 +266,8 @@ func fileExists(filePath string) bool {
 }
 
 // Group creates a new router group with the specified prefix.
-func (r *Router) Group(prefix string) *Router {
-	return &Router{
+func (r *router) Group(prefix string) *router {
+	return &router{
 		Root:        r.Root,
 		Param:       r.Param,
 		BeforeHooks: r.BeforeHooks,
@@ -279,17 +280,17 @@ func (r *Router) Group(prefix string) *Router {
 }
 
 // RegisterGroupBeforeHook registers a before hook for the group.
-func (r *Router) RegisterGroupBeforeHook(hook func(ctx *HttpContext) bool) {
+func (r *router) RegisterGroupBeforeHook(hook func(ctx *HttpContext) bool) {
 	r.GroupBefore = append(r.GroupBefore, hook)
 }
 
 // RegisterGroupAfterHook registers an after hook for the group.
-func (r *Router) RegisterGroupAfterHook(hook func(ctx *HttpContext)) {
+func (r *router) RegisterGroupAfterHook(hook func(ctx *HttpContext)) {
 	r.GroupAfter = append(r.GroupAfter, hook)
 }
 
 // registerRoute registers a route.
-func (r *Router) registerRoute(method, path string, handler func(ctx *HttpContext)) {
+func (r *router) registerRoute(method, path string, handler func(ctx *HttpContext)) {
 	fullPath := r.Prefix + path
 	r.AddRoute(method, fullPath, func(ctx *HttpContext) {
 		// Execute group before hooks
@@ -309,37 +310,37 @@ func (r *Router) registerRoute(method, path string, handler func(ctx *HttpContex
 }
 
 // GET registers a GET route.
-func (r *Router) GET(path string, handler func(ctx *HttpContext)) {
+func (r *router) GET(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("GET", path, handler)
 }
 
 // POST registers a POST route.
-func (r *Router) POST(path string, handler func(ctx *HttpContext)) {
+func (r *router) POST(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("POST", path, handler)
 }
 
 // DELETE registers a DELETE route.
-func (r *Router) DELETE(path string, handler func(ctx *HttpContext)) {
+func (r *router) DELETE(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("DELETE", path, handler)
 }
 
 // PUT registers a PUT route.
-func (r *Router) PUT(path string, handler func(ctx *HttpContext)) {
+func (r *router) PUT(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("PUT", path, handler)
 }
 
 // PATCH registers a PATCH route.
-func (r *Router) PATCH(path string, handler func(ctx *HttpContext)) {
+func (r *router) PATCH(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("PATCH", path, handler)
 }
 
 // HEAD registers a HEAD route.
-func (r *Router) HEAD(path string, handler func(ctx *HttpContext)) {
+func (r *router) HEAD(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("HEAD", path, handler)
 }
 
 // OPTIONS registers a OPTIONS route.
-func (r *Router) OPTIONS(path string, handler func(ctx *HttpContext)) {
+func (r *router) OPTIONS(path string, handler func(ctx *HttpContext)) {
 	r.registerRoute("OPTIONS", path, handler)
 }
 
@@ -390,6 +391,6 @@ func GetParams(req *http.Request) map[string]string {
 }
 
 // ListenAndServe starts an HTTP server with the provided address and handler.
-func (r *Router) ListenAndServe(addr string) error {
+func (r *router) ListenAndServe(addr string) error {
 	return http.ListenAndServe(addr, r)
 }

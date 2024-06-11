@@ -2,11 +2,19 @@ package invoke
 
 import (
 	"errors"
+	"mime/multipart"
+	"net/http"
 	"strconv"
 	"time"
 )
 
 const MaxMultipartBytes = 32 << 20 // 32 MB
+
+// FormDataHandler is a callback function type for handling form data key-value pairs.
+type FormDataHandler func(key string, value string)
+
+// FileHandler is a callback function type for handling file data.
+type FileHandler func(key string, file multipart.File, fileHeader *multipart.FileHeader)
 
 // parmQuery is a helper function to retrieve a parameter value from various sources, including URL parameters, form data, and multipart form data.
 func (ctx *HttpContext) parmQuery(key string) string {
@@ -19,21 +27,117 @@ func (ctx *HttpContext) parmQuery(key string) string {
 	}
 
 	// Retrieve value from form data
-	formValue := ctx.Req.Form.Get(key)
-	if formValue != "" {
+	if formValue := ctx.Req.Form.Get(key); formValue != "" {
 		return formValue
 	}
 
 	// Parse multipart form data if not already parsed
 	if ctx.Req.MultipartForm == nil {
-		if err := ctx.Req.ParseMultipartForm(MaxMultipartBytes); err == nil {
-			multipartValue := ctx.Req.MultipartForm.Value[key]
-			if len(multipartValue) > 0 {
-				return multipartValue[0]
-			}
+		if err := ctx.Req.ParseMultipartForm(MaxMultipartBytes); err != nil && err != http.ErrNotMultipart {
+			return ""
+		}
+	}
+
+	// Retrieve value from multipart form data
+	if ctx.Req.MultipartForm != nil {
+		if multipartValue, ok := ctx.Req.MultipartForm.Value[key]; ok && len(multipartValue) > 0 {
+			return multipartValue[0]
 		}
 	}
 	return ""
+}
+
+// handleFormString iterates over all form data (including multipart form data) and applies the handler function.
+func (ctx *HttpContext) handleFormString(handler FormDataHandler) {
+	// Parse standard form data if not already parsed
+	if ctx.Req.Form == nil {
+		ctx.Req.ParseForm()
+	}
+
+	// Iterate over standard form data
+	for key, values := range ctx.Req.Form {
+		for _, value := range values {
+			handler(key, value)
+		}
+	}
+
+	// Parse multipart form data if not already parsed
+	if ctx.Req.MultipartForm == nil {
+		ctx.Req.ParseMultipartForm(MaxMultipartBytes)
+	}
+
+	// Iterate over multipart form data
+	if ctx.Req.MultipartForm != nil {
+		for key, values := range ctx.Req.MultipartForm.Value {
+			for _, value := range values {
+				handler(key, value)
+			}
+		}
+	}
+}
+
+// handleFormFile iterates over multipart form files and applies the handler function.
+func (ctx *HttpContext) handleFormFile(handler FileHandler) {
+	// Parse multipart form data if not already parsed
+	if ctx.Req.MultipartForm == nil {
+		ctx.Req.ParseMultipartForm(MaxMultipartBytes)
+	}
+
+	// Iterate over multipart form files
+	if ctx.Req.MultipartForm != nil {
+		for key, files := range ctx.Req.MultipartForm.File {
+			for _, fileHeader := range files {
+				file, err := fileHeader.Open()
+				if err != nil {
+					continue
+				}
+				handler(key, file, fileHeader)
+				file.Close() // Ensure the file is closed after handling
+			}
+		}
+	}
+}
+
+// handleFormData iterates over all form data (including multipart form data) and applies the handlers for both form data and files.
+func (ctx *HttpContext) handleFormData(formDataHandler FormDataHandler, fileHandler FileHandler) {
+	// Parse standard form data if not already parsed
+	if ctx.Req.Form == nil {
+		ctx.Req.ParseForm()
+	}
+
+	// Iterate over standard form data
+	for key, values := range ctx.Req.Form {
+		for _, value := range values {
+			formDataHandler(key, value)
+		}
+	}
+
+	// Parse multipart form data if not already parsed
+	if ctx.Req.MultipartForm == nil {
+		ctx.Req.ParseMultipartForm(MaxMultipartBytes)
+	}
+
+	// Iterate over multipart form data
+	if ctx.Req.MultipartForm != nil {
+		// Handle form values
+		for key, values := range ctx.Req.MultipartForm.Value {
+			for _, value := range values {
+				formDataHandler(key, value)
+			}
+		}
+
+		// Handle files
+		for key, files := range ctx.Req.MultipartForm.File {
+			for _, fileHeader := range files {
+				file, err := fileHeader.Open()
+				if err != nil {
+					continue
+				}
+				defer file.Close()
+				fileHandler(key, file, fileHeader)
+			}
+		}
+	}
 }
 
 // ParmStr parses a string parameter from the request.
