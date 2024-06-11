@@ -1,6 +1,8 @@
 package invoke
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"unicode"
@@ -54,7 +56,7 @@ func (stringHandler) ToUpperCamelCase(s string) string {
 }
 
 // ReverseString reverses the given string.
-func ReverseString(s string) string {
+func (stringHandler) ReverseString(s string) string {
 	runes := []rune(s)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
@@ -63,7 +65,7 @@ func ReverseString(s string) string {
 }
 
 // IsPalindrome checks if a string is a palindrome.
-func IsPalindrome(s string) bool {
+func (stringHandler) IsPalindrome(s string) bool {
 	s = strings.ToLower(s)
 	runes := []rune(s)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
@@ -75,7 +77,7 @@ func IsPalindrome(s string) bool {
 }
 
 // RemoveWhitespace removes all whitespace from a string.
-func RemoveWhitespace(s string) string {
+func (stringHandler) RemoveWhitespace(s string) string {
 	return strings.Join(strings.Fields(s), "")
 }
 
@@ -85,7 +87,7 @@ func (stringHandler) isDigit(r rune) bool {
 }
 
 // CountVowels counts the number of vowels in a string.
-func CountVowels(s string) int {
+func (stringHandler) CountVowels(s string) int {
 	count := 0
 	vowels := "aeiouAEIOU"
 	for _, char := range s {
@@ -97,7 +99,7 @@ func CountVowels(s string) int {
 }
 
 // ReplaceVowels replaces all vowels in a string with a given character.
-func ReplaceVowels(s, replacement string) string {
+func (stringHandler) ReplaceVowels(s, replacement string) string {
 	vowels := "aeiouAEIOU"
 	for _, char := range vowels {
 		s = strings.ReplaceAll(s, string(char), replacement)
@@ -106,17 +108,17 @@ func ReplaceVowels(s, replacement string) string {
 }
 
 // Capitalize capitalizes the first letter of each word in a string.
-func Capitalize(s string) string {
+func (stringHandler) Capitalize(s string) string {
 	return strings.Title(s)
 }
 
 // CountWords counts the number of words in a string.
-func CountWords(s string) int {
+func (stringHandler) CountWords(s string) int {
 	return len(strings.Fields(s))
 }
 
 // IsAnagram checks if two strings are anagrams.
-func IsAnagram(s1, s2 string) bool {
+func (stringHandler) IsAnagram(s1, s2 string) bool {
 	runeCount1 := make(map[rune]int)
 	runeCount2 := make(map[rune]int)
 
@@ -131,7 +133,7 @@ func IsAnagram(s1, s2 string) bool {
 }
 
 // GenerateSlug generates a URL-friendly slug from a string.
-func GenerateSlug(s string) string {
+func (stringHandler) GenerateSlug(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, " ", "-")
 	s = strings.Map(func(r rune) rune {
@@ -144,7 +146,7 @@ func GenerateSlug(s string) string {
 }
 
 // RemoveDuplicates removes duplicate characters from a string.
-func RemoveDuplicates(s string) string {
+func (stringHandler) RemoveDuplicates(s string) string {
 	seen := make(map[rune]bool)
 	var result []rune
 	for _, char := range s {
@@ -157,7 +159,7 @@ func RemoveDuplicates(s string) string {
 }
 
 // Truncate truncates a string to a specified length, adding "..." if truncated.
-func Truncate(s string, maxLength int) string {
+func (stringHandler) Truncate(s string, maxLength int) string {
 	if utf8.RuneCountInString(s) <= maxLength {
 		return s
 	}
@@ -165,12 +167,12 @@ func Truncate(s string, maxLength int) string {
 }
 
 // CountSubstring counts the occurrences of a substring in a string.
-func CountSubstring(s, substr string) int {
+func (stringHandler) CountSubstring(s, substr string) int {
 	return strings.Count(s, substr)
 }
 
 // RemoveNonAlphanumeric removes all non-alphanumeric characters from a string.
-func RemoveNonAlphanumeric(s string) string {
+func (stringHandler) RemoveNonAlphanumeric(s string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			return r
@@ -180,7 +182,7 @@ func RemoveNonAlphanumeric(s string) string {
 }
 
 // Rot13 applies the ROT13 algorithm to a string.
-func Rot13(s string) string {
+func (stringHandler) Rot13(s string) string {
 	return strings.Map(func(r rune) rune {
 		if 'a' <= r && r <= 'z' {
 			return 'a' + (r-'a'+13)%26
@@ -193,7 +195,7 @@ func Rot13(s string) string {
 }
 
 // RightPad pads a string to the right with a specified character to a specified length.
-func RightPad(s string, padChar rune, length int) string {
+func (stringHandler) RightPad(s string, padChar rune, length int) string {
 	if len(s) >= length {
 		return s
 	}
@@ -201,7 +203,7 @@ func RightPad(s string, padChar rune, length int) string {
 }
 
 // LeftPad pads a string to the left with a specified character to a specified length.
-func LeftPad(s string, padChar rune, length int) string {
+func (stringHandler) LeftPad(s string, padChar rune, length int) string {
 	if len(s) >= length {
 		return s
 	}
@@ -209,7 +211,7 @@ func LeftPad(s string, padChar rune, length int) string {
 }
 
 // CenterPad centers a string and pads it with a specified character to a specified length.
-func CenterPad(s string, padChar rune, length int) string {
+func (stringHandler) CenterPad(s string, padChar rune, length int) string {
 	if len(s) >= length {
 		return s
 	}
@@ -253,4 +255,25 @@ func (sh stringHandler) isValidHex(s string) bool {
 		}
 	}
 	return true
+}
+
+// MD5HashUpper Calculate the MD5 hash value of a string (in uppercase)
+func (sh stringHandler) MD5HashUpper(data string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(data))
+	hashBytes := hasher.Sum(nil)
+	hashString := hex.EncodeToString(hashBytes)
+
+	// Convert the hash string to uppercase
+	return strings.ToUpper(hashString)
+}
+
+// MD5HashLower Calculate the MD5 hash value of a string (in lowercase)
+func (sh stringHandler) MD5HashLower(data string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(data))
+	hashBytes := hasher.Sum(nil)
+	hashString := hex.EncodeToString(hashBytes)
+	// Return the hash string in lowercase
+	return hashString
 }
