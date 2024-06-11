@@ -118,7 +118,7 @@ func (r *router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
-	path := req.URL.Path
+	path := strings.ToLower(req.URL.Path)
 	parts := splitPath(path) // Split the request path into parts.
 	curr := r.Root           // Start from the root node.
 	params := make(map[string]string)
@@ -292,6 +292,7 @@ func (r *router) RegisterGroupAfterHook(hook func(ctx *HttpContext)) {
 // registerRoute registers a route.
 func (r *router) registerRoute(method, path string, handler func(ctx *HttpContext)) {
 	fullPath := r.Prefix + path
+	fullPath = strings.ToLower(fullPath)
 	r.AddRoute(method, fullPath, func(ctx *HttpContext) {
 		// Execute group before hooks
 		for _, hook := range r.GroupBefore {
@@ -392,5 +393,10 @@ func GetParams(req *http.Request) map[string]string {
 
 // ListenAndServe starts an HTTP server with the provided address and handler.
 func (r *router) ListenAndServe(addr string) error {
+	return http.ListenAndServe(addr, r)
+}
+
+// StartServe starts an HTTP server with the provided address and handler.
+func (r *router) StartServe(addr string) error {
 	return http.ListenAndServe(addr, r)
 }

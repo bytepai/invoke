@@ -28,9 +28,12 @@ type ResponseResult struct {
 	Data interface{} `json:"data"`
 }
 
+// ErrorCode represents custom error codes.
+type ErrorCode int
+
 const (
 	// AuthError indicates an error related to permission.
-	AuthError = iota*1000 + 1000
+	AuthError ErrorCode = iota*1000 + 1000
 	// ParamError indicates an error related to parameters.
 	ParamError
 	// BizError indicates a business logic error.
@@ -45,6 +48,25 @@ const (
 	OtherError
 )
 
+// ErrorCodeToString maps ErrorCode values to their corresponding strings.
+var ErrorCodeToString = map[ErrorCode]string{
+	AuthError:  "AuthError",
+	ParamError: "ParamError",
+	BizError:   "BizError",
+	NetError:   "NetError",
+	DBError:    "DBError",
+	IOError:    "IOError",
+	OtherError: "OtherError",
+}
+
+// ErrorCodeToString converts an ErrorCode value to its corresponding string.
+func (ec ErrorCode) String() string {
+	if str, ok := ErrorCodeToString[ec]; ok {
+		return str
+	}
+	return "Unknown"
+}
+
 // getCallerInfo retrieves the filename and line number of the caller.
 func getCallerInfo() string {
 	_, file, line, ok := runtime.Caller(2) // Adjust the skip value as needed
@@ -55,14 +77,32 @@ func getCallerInfo() string {
 }
 
 // WriteErrorJSON writes an error message as JSON to the response with the specified status code.
-func (ctx *HttpContext) WriteErrorJSON(statusCode int, errMsg interface{}) {
+func (ctx *HttpContext) WriteErrorJSON(statusCode interface{}, errMsg interface{}) {
 	ctx.W.Header().Set("Content-Type", "application/json")
 	ctx.W.WriteHeader(http.StatusOK)
+
+	var code int
+	var errMsgFormatted = errMsg
+	// Determine the type of statusCode and handle accordingly
+	switch v := statusCode.(type) {
+	case int:
+		code = int(v)
+	case int64:
+		code = int(64)
+	case ErrorCode:
+		code = int(v)
+		if str, ok := errMsg.(string); ok {
+			errMsgFormatted = fmt.Sprintf("%v: %v", v.String(), str)
+		}
+	default:
+		code = int(OtherError)
+	}
+
 	response := ResponseResult{
-		Code: statusCode,
+		Code: code,
 		URL:  ctx.Req.URL.Path,
 		Desc: getCallerInfo(),
-		Data: errMsg,
+		Data: errMsgFormatted,
 	}
 
 	json.NewEncoder(ctx.W).Encode(response)
