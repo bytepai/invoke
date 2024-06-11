@@ -1,0 +1,34 @@
+{
+    "postgresql": {
+        "host": "localhost",
+        "port": 5432,
+        "user": "postgres",
+        "password": "password",
+        "dbname": "postgres",
+        "sslmode": "disable"
+    },
+    "oracle": {
+        "user": "oracle_user",
+        "password": "password",
+        "dbname": "oracledb"
+    },
+    "sqlite": {
+        "dbpath": "sqlite.db"
+    },
+    "mysql": {
+        "host": "localhost",
+        "port": 3306,
+        "user": "mysql_user",
+        "password": "password",
+        "dbname": "mysqldb"
+    },
+    "mongodb": {
+        "uri": "mongodb://localhost:27017",
+        "database": "mydatabase"
+    },
+    "redis": {
+        "addr": "localhost:6379",
+        "password": "",
+        "db": 0
+    }
+}

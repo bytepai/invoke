@@ -1,0 +1,56 @@
+{
+    "servers": [
+        {
+            "domain": "localhost",
+            "port": 8080,
+            "read_timeout": 5000000000,
+            "write_timeout": 10000000000,
+            "max_header_bytes": 1048576,
+            "tls": {
+                "cert_file": "",
+                "key_file": ""
+            },
+            "limits": {
+                "requests_per_second": 100
+            },
+            "rate_limit": {
+                "requests_per_second": 100
+            },
+            "logging": {
+                "access_log": "",
+                "error_log": "",
+                "log_level": "info"
+            },
+            "security": {
+                "allowed_hosts": null,
+                "cors": {
+                    "allowed_origins": null,
+                    "allowed_methods": null,
+                    "allowed_headers": null
+                },
+                "csrf_protection": true
+            },
+            "timeouts": {
+                "idle_timeout": 120000000000,
+                "header_timeout": 0,
+                "response_header_timeout": 0
+            },
+            "keep_alive": {
+                "enabled": true,
+                "timeout": 30000000000
+            },
+            "compression": {
+                "enable_gzip": true,
+                "compression_level": 5
+            },
+            "static_files": {
+                "static_dir": "./static",
+                "index_file": "index.html"
+            },
+            "middleware": [
+                "logging",
+                "rateLimiting"
+            ]
+        }
+    ]
+}
