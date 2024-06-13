@@ -23,8 +23,8 @@ type HttpContext struct {
 // ResponseResult represents a unified response structure.
 type ResponseResult struct {
 	Code int         `json:"code"`
-	URL  string      `json:"url"`
-	Desc string      `json:"desc"`
+	URL  string      `json:"url,omitempty"`
+	Desc string      `json:"desc,omitempty"`
 	Data interface{} `json:"data"`
 }
 
