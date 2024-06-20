@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -257,8 +258,10 @@ func mapToStruct(value []byte, column string, dest interface{}) error {
 				field.SetBool(val)
 			}
 		case reflect.Slice:
-			if field.Type().Elem().Kind() == reflect.Uint8 {
+			if field.Type() == reflect.TypeOf([]byte{}) {
 				field.SetBytes(value)
+			} else if field.Type() == reflect.TypeOf(json.RawMessage{}) {
+				field.SetBytes([]byte(valueStr))
 			}
 		case reflect.Struct:
 			if field.Type() == reflect.TypeOf(time.Time{}) {
@@ -285,6 +288,3 @@ func (db *MyDB) formatQuery(query string, args ...interface{}) string {
 	}
 	return query
 }
-
-
-
