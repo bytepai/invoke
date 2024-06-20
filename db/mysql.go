@@ -11,22 +11,22 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// myDB wraps a sql.DB connection pool.
-type myDB struct {
+// MyDB wraps a sql.DB connection pool.
+type MyDB struct {
 	*sql.DB
 }
 
 // NewDB initializes a new database connection.
-func NewDB(dataSourceName string) (*myDB, error) {
+func NewDB(dataSourceName string) (*MyDB, error) {
 	db, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		return nil, err
 	}
-	return &myDB{db}, nil
+	return &MyDB{db}, nil
 }
 
 // NamedExec executes a named query with the provided arguments.
-func (db *myDB) NamedExec(query string, arg map[string]interface{}) (sql.Result, error) {
+func (db *MyDB) NamedExec(query string, arg map[string]interface{}) (sql.Result, error) {
 	for k, v := range arg {
 		placeholder := fmt.Sprintf(":%s", k)
 		value := "NULL"
@@ -40,7 +40,7 @@ func (db *myDB) NamedExec(query string, arg map[string]interface{}) (sql.Result,
 }
 
 // In expands slice arguments for SQL IN queries.
-func (db *myDB) In(query string, args ...interface{}) (string, []interface{}, error) {
+func (db *MyDB) In(query string, args ...interface{}) (string, []interface{}, error) {
 	var inArgs []interface{}
 	for _, arg := range args {
 		val := reflect.ValueOf(arg)
@@ -62,12 +62,12 @@ func (db *myDB) In(query string, args ...interface{}) (string, []interface{}, er
 }
 
 // Begin starts a new database transaction.
-func (db *myDB) Begin() (*sql.Tx, error) {
+func (db *MyDB) Begin() (*sql.Tx, error) {
 	return db.DB.Begin()
 }
 
 // BulkInsert inserts multiple rows into the specified table.
-func (db *myDB) BulkInsert(table string, data []map[string]interface{}) (sql.Result, error) {
+func (db *MyDB) BulkInsert(table string, data []map[string]interface{}) (sql.Result, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("no data to insert")
 	}
@@ -96,7 +96,7 @@ func (db *myDB) BulkInsert(table string, data []map[string]interface{}) (sql.Res
 }
 
 // BulkUpdate updates multiple rows in the specified table based on the key column.
-func (db *myDB) BulkUpdate(table string, data []map[string]interface{}, key string) error {
+func (db *MyDB) BulkUpdate(table string, data []map[string]interface{}, key string) error {
 	if len(data) == 0 {
 		return fmt.Errorf("no data to update")
 	}
@@ -143,7 +143,7 @@ func (db *myDB) BulkUpdate(table string, data []map[string]interface{}, key stri
 }
 
 // Select executes a query and scans all rows into the destination slice.
-func (db *myDB) Select(query string, dest interface{}, args ...interface{}) error {
+func (db *MyDB) Select(query string, dest interface{}, args ...interface{}) error {
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (db *myDB) Select(query string, dest interface{}, args ...interface{}) erro
 }
 
 // Get executes a query and scans the first row into the destination struct.
-func (db *myDB) Get(query string, dest interface{}, args ...interface{}) error {
+func (db *MyDB) Get(query string, dest interface{}, args ...interface{}) error {
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		return err
@@ -279,9 +279,12 @@ func mapToStruct(value []byte, column string, dest interface{}) error {
 }
 
 // Helper function to format query with args
-func (db *myDB) formatQuery(query string, args ...interface{}) string {
+func (db *MyDB) formatQuery(query string, args ...interface{}) string {
 	for _, arg := range args {
 		query = strings.Replace(query, "?", fmt.Sprintf("'%v'", arg), 1)
 	}
 	return query
 }
+
+
+
