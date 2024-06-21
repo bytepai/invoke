@@ -220,6 +220,16 @@ func (db *MyDB) Get(query string, dest interface{}, args ...interface{}) error {
 	return nil
 }
 
+// TypeParser defines the function signature for custom type parsers.
+type TypeParser func([]byte) (interface{}, error)
+
+var typeParsers = make(map[reflect.Type]TypeParser)
+
+// RegisterTypeParser registers a custom parser for a specific type.
+func RegisterTypeParser(t reflect.Type, parser TypeParser) {
+	typeParsers[t] = parser
+}
+
 // mapToStruct maps a single value to the corresponding struct field.
 func mapToStruct(value []byte, column string, dest interface{}) error {
 	destValue := reflect.ValueOf(dest).Elem()
@@ -241,39 +251,68 @@ func mapToStruct(value []byte, column string, dest interface{}) error {
 
 	field := destValue.FieldByName(fieldName)
 	if field.IsValid() && field.CanSet() {
-		valueStr := string(value)
-		switch field.Kind() {
-		case reflect.String:
-			field.SetString(valueStr)
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
-				field.SetInt(val)
+		fieldType := field.Type()
+		parser, ok := typeParsers[fieldType]
+
+		if ok {
+			// Use registered custom parser
+			parsedValue, err := parser(value)
+			if err != nil {
+				return err
 			}
-		case reflect.Float32, reflect.Float64:
-			if val, err := strconv.ParseFloat(valueStr, 64); err == nil {
-				field.SetFloat(val)
-			}
-		case reflect.Bool:
-			if val, err := strconv.ParseBool(valueStr); err == nil {
-				field.SetBool(val)
-			}
-		case reflect.Slice:
-			if field.Type() == reflect.TypeOf([]byte{}) {
-				field.SetBytes(value)
-			} else if field.Type() == reflect.TypeOf(json.RawMessage{}) {
-				field.SetBytes([]byte(valueStr))
-			}
-		case reflect.Struct:
-			if field.Type() == reflect.TypeOf(time.Time{}) {
-				if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
-					field.Set(reflect.ValueOf(val))
+			field.Set(reflect.ValueOf(parsedValue))
+		} else {
+			// Default handling for common types
+			valueStr := string(value)
+			switch field.Kind() {
+			case reflect.String:
+				field.SetString(valueStr)
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+					field.SetInt(val)
 				}
-			}
-		case reflect.Ptr:
-			if field.Type().Elem().Kind() == reflect.Struct && field.Type().Elem() == reflect.TypeOf(time.Time{}) {
-				if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
-					field.Set(reflect.ValueOf(&val))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				if val, err := strconv.ParseUint(valueStr, 10, 64); err == nil {
+					field.SetUint(val)
 				}
+			case reflect.Float32, reflect.Float64:
+				if val, err := strconv.ParseFloat(valueStr, 64); err == nil {
+					field.SetFloat(val)
+				}
+			case reflect.Bool:
+				if val, err := strconv.ParseBool(valueStr); err == nil {
+					field.SetBool(val)
+				}
+			case reflect.Slice:
+				if field.Type() == reflect.TypeOf([]byte{}) {
+					field.SetBytes(value)
+				} else if field.Type() == reflect.TypeOf(json.RawMessage{}) {
+					field.SetBytes([]byte(valueStr))
+				} else {
+					fmt.Printf("Unsupported slice element type: %v\n", field.Type().Elem())
+				}
+			case reflect.Struct:
+				//if field.Type() == reflect.TypeOf(time.Time{}) {
+				if field.CanConvert(reflect.TypeOf(time.Time{})) {
+					if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
+						//field.Set(reflect.ValueOf(val))
+						newVal := reflect.New(field.Type()).Elem()
+						newVal.Set(reflect.ValueOf(val).Convert(field.Type()))
+						field.Set(newVal)
+					}
+				} else {
+					fmt.Printf("Unsupported struct type: %v\n", field.Type())
+				}
+			case reflect.Ptr:
+				if field.Type().Elem().Kind() == reflect.Struct && field.Type().Elem() == reflect.TypeOf(time.Time{}) {
+					if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
+						field.Set(reflect.ValueOf(&val))
+					}
+				} else {
+					fmt.Printf("Unsupported pointer to type: %v\n", field.Type().Elem())
+				}
+			default:
+				fmt.Printf("Unsupported type: %v\n", field.Kind())
 			}
 		}
 	}
