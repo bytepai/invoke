@@ -220,91 +220,96 @@ func (db *MyDB) Get(dest interface{}, query string, args ...interface{}) error {
 	return nil
 }
 
-// TypeParser defines the function signature for custom type parsers.
-type TypeParser func([]byte) (interface{}, error)
+// CustomTypeFunc is a type for functions that convert a string to a custom type.
+type CustomTypeFunc func(string) (reflect.Value, error)
 
-var typeParsers = make(map[reflect.Type]TypeParser)
+var customTypeRegistry = make(map[reflect.Type]CustomTypeFunc)
 
-// RegisterTypeParser registers a custom parser for a specific type.
-func RegisterTypeParser(t reflect.Type, parser TypeParser) {
-	typeParsers[t] = parser
+// RegisterCustomType registers a custom type and its conversion function.
+func RegisterCustomType(t reflect.Type, fn CustomTypeFunc) {
+	customTypeRegistry[t] = fn
 }
 
-// mapToStruct maps a single value to the corresponding struct field.
+// mapToStruct maps a single value to the corresponding struct field or basic type.
 func mapToStruct(value []byte, column string, dest interface{}) error {
 	destValue := reflect.ValueOf(dest).Elem()
 	destType := destValue.Type()
 
+	// Handle basic types directly
 	if destType.Kind() != reflect.Struct {
 		return setValue(destValue, string(value))
-		//return fmt.Errorf("dest must be a pointer to a struct")
 	}
-	fieldName := ""
-	for i := 0; i < destType.NumField(); i++ {
-		field := destType.Field(i)
-		dbTag := field.Tag.Get("db")
-		if strings.EqualFold(dbTag, column) {
-			fieldName = field.Name
-			break
+
+	// If the destination is a struct, find the corresponding field by the db tag
+	fieldName, err := getFieldNameByTag(destType, column)
+	if err == nil {
+		field := destValue.FieldByName(fieldName)
+		if !field.IsValid() || !field.CanSet() {
+			return fmt.Errorf("field %s cannot be set", fieldName)
 		}
+
+		return setFieldValue(field, string(value))
 	}
-
-	if fieldName == "" {
-		return fmt.Errorf("column %s not found in struct", column)
-	}
-
-	field := destValue.FieldByName(fieldName)
-	if !field.IsValid() || !field.CanSet() {
-		return fmt.Errorf("field %s cannot be set", fieldName)
-	}
-
-	fieldType := field.Type()
-
-	valueStr := string(value)
-
-	switch field.Kind() {
-	case reflect.Ptr:
-		elemType := fieldType.Elem()
-		newValue := reflect.New(elemType).Elem()
-		err := setValue(newValue, valueStr)
-		if err != nil {
-			return err
-		}
-		field.Set(newValue.Addr())
-	default:
-		err := setValue(field, valueStr)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return setValue(destValue, string(value))
 }
 
-func setValue(field reflect.Value, valueStr string) error {
+// getFieldNameByTag finds the field name in a struct type by the given db tag.
+func getFieldNameByTag(destType reflect.Type, tag string) (string, error) {
+	for i := 0; i < destType.NumField(); i++ {
+		field := destType.Field(i)
+		if strings.EqualFold(field.Tag.Get("db"), tag) {
+			return field.Name, nil
+		}
+	}
+	return "", fmt.Errorf("column %s not found in struct", tag)
+}
+
+// setFieldValue sets a value to a reflect.Value based on its type.
+func setFieldValue(field reflect.Value, value string) error {
+	if field.Kind() == reflect.Ptr {
+		if field.IsNil() {
+			field.Set(reflect.New(field.Type().Elem()))
+		}
+		field = field.Elem()
+	}
+
+	return setValue(field, value)
+}
+
+// setValue sets a value to a reflect.Value based on its type.
+func setValue(field reflect.Value, value string) error {
+	if fn, ok := customTypeRegistry[field.Type()]; ok {
+		customValue, err := fn(value)
+		if err != nil {
+			return err
+		}
+
+		field.Set(customValue)
+		return nil
+	}
 	switch field.Kind() {
 	case reflect.String:
-		field.SetString(valueStr)
+		field.SetString(value)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		val, err := strconv.ParseInt(valueStr, 10, field.Type().Bits())
+		val, err := strconv.ParseInt(value, 10, field.Type().Bits())
 		if err != nil {
 			return err
 		}
 		field.SetInt(val)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		val, err := strconv.ParseUint(valueStr, 10, field.Type().Bits())
+		val, err := strconv.ParseUint(value, 10, field.Type().Bits())
 		if err != nil {
 			return err
 		}
 		field.SetUint(val)
 	case reflect.Float32, reflect.Float64:
-		val, err := strconv.ParseFloat(valueStr, field.Type().Bits())
+		val, err := strconv.ParseFloat(value, field.Type().Bits())
 		if err != nil {
 			return err
 		}
 		field.SetFloat(val)
 	case reflect.Bool:
-		val, err := strconv.ParseBool(valueStr)
+		val, err := strconv.ParseBool(value)
 		if err != nil {
 			return err
 		}
@@ -312,14 +317,14 @@ func setValue(field reflect.Value, valueStr string) error {
 	case reflect.Slice:
 		if field.CanConvert(reflect.TypeOf(json.RawMessage{})) {
 			newVal := reflect.New(field.Type()).Elem()
-			newVal.Set(reflect.ValueOf(valueStr).Convert(field.Type()))
+			newVal.Set(reflect.ValueOf(value).Convert(field.Type()))
 			field.Set(newVal)
 		} else {
 			return fmt.Errorf("unsupported slice type: %v", field.Type())
 		}
 	case reflect.Struct:
 		if field.CanConvert(reflect.TypeOf(time.Time{})) {
-			if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
+			if val, err := time.Parse(time.RFC3339, value); err == nil {
 				newVal := reflect.New(field.Type()).Elem()
 				newVal.Set(reflect.ValueOf(val).Convert(field.Type()))
 				field.Set(newVal)
@@ -327,7 +332,6 @@ func setValue(field reflect.Value, valueStr string) error {
 		} else {
 			return fmt.Errorf("unsupported struct type: %v", field.Type())
 		}
-
 	default:
 		return fmt.Errorf("unsupported type: %v", field.Kind())
 	}
