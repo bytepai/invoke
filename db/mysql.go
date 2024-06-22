@@ -12,7 +12,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// MyDB wraps a sql.DB connection pool.
+// myDB wraps a sql.DB connection pool.
 type MyDB struct {
 	*sql.DB
 }
@@ -144,7 +144,7 @@ func (db *MyDB) BulkUpdate(table string, data []map[string]interface{}, key stri
 }
 
 // Select executes a query and scans all rows into the destination slice.
-func (db *MyDB) Select(query string, dest interface{}, args ...interface{}) error {
+func (db *MyDB) Select(dest interface{}, query string, args ...interface{}) error {
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func (db *MyDB) Select(query string, dest interface{}, args ...interface{}) erro
 }
 
 // Get executes a query and scans the first row into the destination struct.
-func (db *MyDB) Get(query string, dest interface{}, args ...interface{}) error {
+func (db *MyDB) Get(dest interface{}, query string, args ...interface{}) error {
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		return err
@@ -235,6 +235,10 @@ func mapToStruct(value []byte, column string, dest interface{}) error {
 	destValue := reflect.ValueOf(dest).Elem()
 	destType := destValue.Type()
 
+	if destType.Kind() != reflect.Struct {
+		return setValue(destValue, string(value))
+		//return fmt.Errorf("dest must be a pointer to a struct")
+	}
 	fieldName := ""
 	for i := 0; i < destType.NumField(); i++ {
 		field := destType.Field(i)
@@ -246,77 +250,87 @@ func mapToStruct(value []byte, column string, dest interface{}) error {
 	}
 
 	if fieldName == "" {
-		return nil
+		return fmt.Errorf("column %s not found in struct", column)
 	}
 
 	field := destValue.FieldByName(fieldName)
-	if field.IsValid() && field.CanSet() {
-		fieldType := field.Type()
-		parser, ok := typeParsers[fieldType]
+	if !field.IsValid() || !field.CanSet() {
+		return fmt.Errorf("field %s cannot be set", fieldName)
+	}
 
-		if ok {
-			// Use registered custom parser
-			parsedValue, err := parser(value)
-			if err != nil {
-				return err
-			}
-			field.Set(reflect.ValueOf(parsedValue))
-		} else {
-			// Default handling for common types
-			valueStr := string(value)
-			switch field.Kind() {
-			case reflect.String:
-				field.SetString(valueStr)
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
-					field.SetInt(val)
-				}
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				if val, err := strconv.ParseUint(valueStr, 10, 64); err == nil {
-					field.SetUint(val)
-				}
-			case reflect.Float32, reflect.Float64:
-				if val, err := strconv.ParseFloat(valueStr, 64); err == nil {
-					field.SetFloat(val)
-				}
-			case reflect.Bool:
-				if val, err := strconv.ParseBool(valueStr); err == nil {
-					field.SetBool(val)
-				}
-			case reflect.Slice:
-				if field.Type() == reflect.TypeOf([]byte{}) {
-					field.SetBytes(value)
-				} else if field.Type() == reflect.TypeOf(json.RawMessage{}) {
-					field.SetBytes([]byte(valueStr))
-				} else {
-					fmt.Printf("Unsupported slice element type: %v\n", field.Type().Elem())
-				}
-			case reflect.Struct:
-				//if field.Type() == reflect.TypeOf(time.Time{}) {
-				if field.CanConvert(reflect.TypeOf(time.Time{})) {
-					if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
-						//field.Set(reflect.ValueOf(val))
-						newVal := reflect.New(field.Type()).Elem()
-						newVal.Set(reflect.ValueOf(val).Convert(field.Type()))
-						field.Set(newVal)
-					}
-				} else {
-					fmt.Printf("Unsupported struct type: %v\n", field.Type())
-				}
-			case reflect.Ptr:
-				if field.Type().Elem().Kind() == reflect.Struct && field.Type().Elem() == reflect.TypeOf(time.Time{}) {
-					if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
-						field.Set(reflect.ValueOf(&val))
-					}
-				} else {
-					fmt.Printf("Unsupported pointer to type: %v\n", field.Type().Elem())
-				}
-			default:
-				fmt.Printf("Unsupported type: %v\n", field.Kind())
-			}
+	fieldType := field.Type()
+
+	valueStr := string(value)
+
+	switch field.Kind() {
+	case reflect.Ptr:
+		elemType := fieldType.Elem()
+		newValue := reflect.New(elemType).Elem()
+		err := setValue(newValue, valueStr)
+		if err != nil {
+			return err
+		}
+		field.Set(newValue.Addr())
+	default:
+		err := setValue(field, valueStr)
+		if err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func setValue(field reflect.Value, valueStr string) error {
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(valueStr)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		val, err := strconv.ParseInt(valueStr, 10, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetInt(val)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		val, err := strconv.ParseUint(valueStr, 10, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetUint(val)
+	case reflect.Float32, reflect.Float64:
+		val, err := strconv.ParseFloat(valueStr, field.Type().Bits())
+		if err != nil {
+			return err
+		}
+		field.SetFloat(val)
+	case reflect.Bool:
+		val, err := strconv.ParseBool(valueStr)
+		if err != nil {
+			return err
+		}
+		field.SetBool(val)
+	case reflect.Slice:
+		if field.CanConvert(reflect.TypeOf(json.RawMessage{})) {
+			newVal := reflect.New(field.Type()).Elem()
+			newVal.Set(reflect.ValueOf(valueStr).Convert(field.Type()))
+			field.Set(newVal)
+		} else {
+			return fmt.Errorf("unsupported slice type: %v", field.Type())
+		}
+	case reflect.Struct:
+		if field.CanConvert(reflect.TypeOf(time.Time{})) {
+			if val, err := time.Parse(time.RFC3339, valueStr); err == nil {
+				newVal := reflect.New(field.Type()).Elem()
+				newVal.Set(reflect.ValueOf(val).Convert(field.Type()))
+				field.Set(newVal)
+			}
+		} else {
+			return fmt.Errorf("unsupported struct type: %v", field.Type())
+		}
+
+	default:
+		return fmt.Errorf("unsupported type: %v", field.Kind())
+	}
 	return nil
 }
 
