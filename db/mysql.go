@@ -278,6 +278,12 @@ func setFieldValue(field reflect.Value, value string) error {
 
 // setValue sets a value to a reflect.Value based on its type.
 func setValue(field reflect.Value, value string) error {
+	// Handle null or empty value
+	if value == "" {
+		field.Set(reflect.Zero(field.Type()))
+		return nil
+	}
+	
 	if fn, ok := customTypeRegistry[field.Type()]; ok {
 		customValue, err := fn(value)
 		if err != nil {
