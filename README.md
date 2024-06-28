@@ -140,13 +140,21 @@ func main() {
 	r.ListenAndServe(":8080")
 }
 ```
-### Server 
-#### router->server->config
-#### server->config->router
-#### config->server->router
-#### http.ListenAndServe->config->router
+### Serve
+#### Router->Serve(config)
+```
+	Router.StartServer(":8080") 
+	Router.StartServer("localhost:8080")
+	Router.StartServerConfig(ServerConfig)
+	
+```
+#### Serve(config,router)
+```
+    Server.Start("localhost:8080",Router)
+	Server.StartConfig(ServerConfig,Router)
 
-servers->routers
+```
+
 
 
 
